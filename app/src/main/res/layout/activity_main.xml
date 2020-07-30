@@ -12,6 +12,7 @@ android:layout_height="match_parent">
         android:layout_height="match_parent"
         android:scaleType="centerInside"
         android:layout_gravity="center"
+        android:src="@drawable/worldtime_2160p"
          />
 
 </LinearLayout>

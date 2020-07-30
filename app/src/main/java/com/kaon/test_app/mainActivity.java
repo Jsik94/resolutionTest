@@ -14,12 +14,16 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Parcel;
+import android.os.WorkSource;
 import android.service.controls.ControlsProviderService;
 import android.util.DisplayMetrics;
 import android.util.JsonReader;
 import android.util.Log;
 import android.util.Pair;
 import android.view.Display;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.WebView;
@@ -38,26 +42,41 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 
+
 public class mainActivity extends AppCompatActivity {
+
+    public static final String KEY_TAG  = "D/key";
+    public static final int KEYCODE_DPAD_UP = 19 ;
+    public static final int KEYCODE_DPAD_DOWN = 20 ;
+    public static final int KEYCODE_DPAD_LEFT = 21;
+    public static final int KEYCODE_DPAD_RIGHT = 22 ;
+    public static final int KEYCODE_DPAD_OK = 23 ;
+    public static final int KEYCODE_DPAD_forward = 186 ;
+    public static final int KEYCODE_BACK = 4 ;
+
+    public static final String APP_DEBUG = "KAON";
+    public static final String IMG_TAG = "D/imgBitmap";
+
+
+
 
     DisplayManager displayManager;
     ImageView imgView;
-    TextView txtView,txtDPI;
-    Button btnToggle,btnOff;
+
     Integer[] imgAddr ={R.drawable.worldtime_1080p,R.drawable.worldtime_2160p,
                         R.drawable.island_1080p,R.drawable.island_2160p,
                         R.drawable.port_1080p,R.drawable.port_2160p,
                         R.drawable.road_1080p,R.drawable.road_2160p,
                         R.drawable.snow_1080p,R.drawable.snow_2160p};
+    String[] nameTag = {"worldtime", "island", "port", "road","snow"};
+    Integer curNameIndexor = 0 ;
+    Integer curResolIndexor = 0 ;
+
     Boolean switcher ;
-
     //modified : photo , Pair : drawable address ( 1060p) , drawable address ( 2160p)
-
-    HashMap<Integer, Pair<Integer,Integer>> output_data = new HashMap<Integer,Pair<Integer,Integer>>();
+    HashMap<String, Pair<Integer,Integer>> output_data = new HashMap<String,Pair<Integer,Integer>>();
     private static Handler loophandler;
-
     final Integer MDPI = 160,HDPI = 240,XHDPI = 320,XXHDPI = 480,XXXHDPI = 640 ;
-
     BitmapFactory.Options opt;
     Bitmap bitmap;
 
@@ -67,20 +86,19 @@ public class mainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         imgView = (ImageView)findViewById(R.id.imgPicture);
+        Log.d(APP_DEBUG, "---------------------- onCreate -------------------- ");
 //        txtView = (TextView)findViewById(R.id.tvConfig);
 //        txtDPI = (TextView)findViewById(R.id.tvDPIChecker);
 //        btnToggle = (Button)findViewById(R.id.btnToggle);
 //        btnOff = (Button)findViewById(R.id.btnOff);
-
+        //init
+        curNameIndexor = 0;
         switcher= true ;
-
-        btnToggle.setEnabled(true);
         setHashMap(output_data);
-        Display dps;
 
-       // searchFile();
+        //Display dps;
+        // searchFile();
 
         ActivityOptions aoptions = ActivityOptions.makeBasic();
         int tmp =aoptions.getLaunchDisplayId();
@@ -186,16 +204,10 @@ public class mainActivity extends AppCompatActivity {
             }
         });
 */
-
-
-
+        Log.d(APP_DEBUG, "---------------------- onCreate DONE -------------------- ");
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        Log.d("LifeCycle", "This Activity is start");
-    }
+
 
     @Override
     protected void onResume() {
@@ -207,29 +219,46 @@ public class mainActivity extends AppCompatActivity {
         resol = getDeviceResolution();
         Resources res =getResources();
         //Load Device DPI and Select their DPI
-        Integer addr = resolutionSelector(getDeviceResolution().first,output_data);
-        Pair<Integer,Integer> imgSize = getResolution(addr,res);
-        bitmap = BitmapFactory.decodeResource(res,addr,opt);
-        bitmap = Bitmap.createScaledBitmap(bitmap,imgSize.second,imgSize.first,true);
+
+        Integer addr_img = resolutionSelector(getDeviceResolution().first);
+
+        Log.d(APP_DEBUG,"Switcher Status : " + switcher) ;
+        Pair<Integer,Integer> imgSize = getResolution(addr_img,res);
+        bitmap = BitmapFactory.decodeResource(res,addr_img,opt);
+//      bitmap = Bitmap.createScaledBitmap(bitmap,imgSize.second,imgSize.first,true);
 //
         imgView.setImageBitmap(bitmap);
 //
 
-        // resolution =Integer.toString(opt.outHeight);
-//        String result_text = "\n Img Resolution : " +getResolution(opt,addr,getResources()); ;
-//
+
+        String result_text = "\n Img width : " +getResolution(opt,addr_img,getResources()).first +
+                             "  img Height : " +getResolution(opt,addr_img,getResources()).second;
+
 //        txtView.setText(result_text);
 
 //        txtDPI.setText("Device DPI :" + Integer.toString(dpi) +"dp"+
 //               "\n  Width : " + resol.first + " height : " + resol.second);
 
         //화면 해상도
-        txtDPI.setText(" - Device size info - "+
-                "\nWidth : " + resol.first + " height : " + resol.second);
+//        txtDPI.setText(" - Device size info - "+
+//                "\nWidth : " + resol.first + " height : " + resol.second);
 
 
 
     }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch(event.getAction()){
+
+            case MotionEvent.ACTION_UP:
+                return true;
+        }
+
+        return super.onTouchEvent(event);
+    }
+
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -239,6 +268,86 @@ public class mainActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         Log.d("LifeCycle", "This Activity is stop.");
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+
+        Log.d("Key","this Remote Key code is " + Integer.toString(keyCode));
+        boolean useSwitch = false;
+        switch(keyCode){
+
+            case KEYCODE_DPAD_LEFT:
+                Log.d(KEY_TAG,"LEFT KEY LEFT -- CODE  : " + keyCode );
+                if(curNameIndexor>0){
+                 --curNameIndexor;
+                }
+                useSwitch = true;
+
+                imgView.setImageBitmap(setImageVeiwSet(getResources(),curNameIndexor));
+                break;
+
+            case KEYCODE_DPAD_RIGHT:
+                Log.d(KEY_TAG,"LEFT KEY RIGHT -- CODE  : " + keyCode );
+                if(curNameIndexor<4){
+                    ++curNameIndexor;
+                }
+                useSwitch = true;
+
+                imgView.setImageBitmap(setImageVeiwSet(getResources(),curNameIndexor));
+                break;
+
+            case KEYCODE_DPAD_UP:
+                switcher=!switcher;
+                useSwitch = true;
+                imgView.setImageBitmap(setImageVeiwSet(getResources(),curNameIndexor));
+                break;
+
+            case KEYCODE_DPAD_DOWN:
+                Log.d(KEY_TAG,"LEFT KEY DOWN -- CODE  : " + keyCode );
+                switcher=!switcher;
+                useSwitch = true;
+                imgView.setImageBitmap(setImageVeiwSet(getResources(),curNameIndexor));
+                break;
+
+            case KEYCODE_DPAD_OK:
+                Log.d(KEY_TAG,"LEFT KEY OK -- CODE  : " + keyCode );
+                Pair<Integer,Integer> d_info = getDeviceResolution();
+                Pair<Integer,Integer> i_info ;
+                if(switcher){
+                    i_info = getResolution(output_data.get(nameTag[curNameIndexor]).first,getResources());
+                }else{
+                    i_info = getResolution(output_data.get(nameTag[curNameIndexor]).second,getResources());
+                }
+
+
+                Toast.makeText(this.getApplicationContext(),"Device Info : " + d_info.first+
+                        " * " +d_info.second+"\n"+
+                        "Img info : " + i_info.first + " * " + i_info.second,Toast.LENGTH_SHORT ).show();
+                useSwitch = true;
+                //Toast.makeText(this.getApplicationContext(),"switcher : "+curNameIndexor ,Toast.LENGTH_SHORT).show();
+
+                break;
+
+            case  KEYCODE_DPAD_forward:
+
+
+
+                Toast.makeText(this.getApplicationContext(),"KeyCode :" + keyCode+"\n"+
+                       "display count : "+  displayManager.getDisplays().length ,Toast.LENGTH_SHORT).show();
+
+        }
+
+
+
+
+
+        if (useSwitch){
+            return true;
+        }else{
+         return super.onKeyUp(keyCode, event);
+        }
+
     }
 
 
@@ -305,6 +414,7 @@ public class mainActivity extends AppCompatActivity {
 
     }
 
+    //bitmap option 설정
     private BitmapFactory.Options getBitmapSize(Resources res ,int imgAddr) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inSampleSize = 1;
@@ -314,34 +424,50 @@ public class mainActivity extends AppCompatActivity {
         return options;
     }
 
-    private String getResolution (BitmapFactory.Options opt, int imgAddr,Resources res){
-        String resolution ="";
+    //왜만듬 ?
+    private Pair<Integer,Integer> getResolution (BitmapFactory.Options opt, int imgAddr,Resources res){
+        Pair<Integer,Integer> img_resol;
         opt = getBitmapSize(res,imgAddr);
 
-        resolution = Integer.toString(opt.outHeight);
-        return resolution;
+        return new Pair<Integer, Integer>(opt.outWidth,opt.outHeight);
     }
 
+    //img resolution
     private Pair<Integer,Integer> getResolution (int imgAddr,Resources res){
         Pair<Integer,Integer> resolution ;
         opt = getBitmapSize(res,imgAddr);
 
+    //opt sampling 사이즈에 따라 보상값 적용
         resolution= new Pair<Integer, Integer>(opt.outHeight*opt.inSampleSize,opt.outWidth*opt.inSampleSize);
         return resolution;
     }
 
-    private void setHashMap(HashMap<Integer,Pair<Integer,Integer>> output){
 
-        for (int i = 0 ; i < imgAddr.length ; i++){
-            output.put(1,Pair.create(imgAddr[i++],imgAddr[i]));
+    private Bitmap setImageVeiwSet (Resources res, int imgIdx){
+        Log.d(IMG_TAG,"world curIDX : " + curNameIndexor + " local imgIDX : " + imgIdx);
+
+        int addr ;
+
+        if(switcher){       //2160
+            addr = output_data.get(nameTag[curNameIndexor]).first;
+        }else{              //1080
+            addr = output_data.get(nameTag[curNameIndexor]).second;
         }
 
+        return BitmapFactory.decodeResource(res,addr,getBitmapSize(res,addr));
+    }
 
+    private void setHashMap(HashMap<String,Pair<Integer,Integer>> output){
 
-
-
+        for (int i = 0 ; i < nameTag.length ; i++){
+            int j = (i) *2  +1 ;
+            output.put(nameTag[i],Pair.create(imgAddr[j-1],imgAddr[j]));
+            Log.d("HashMap","Key : "+ nameTag[i] + " Pair second: " + imgAddr[j]);
+            Log.d("i confirm", "i : " + i+" | j : " + j);
+        }
         Log.d("setHashmp", "setHashMap is complete  ");
     }
+
 
     private int getDeviceDPI(){
         Activity context = mainActivity.this;
@@ -362,6 +488,7 @@ public class mainActivity extends AppCompatActivity {
         return metrics.densityDpi;
     }
 
+    //Return Pair<Integer,Integer> : width(resol),height
     private Pair<Integer, Integer> getDeviceResolution(){
 
         int width,height;
@@ -377,10 +504,7 @@ public class mainActivity extends AppCompatActivity {
                 Log.d("DISPLAY ID" , Integer.toString(dis.getDisplayId()));
             }
         }else {
-
-
                 display = displayManager.getDisplay(0);
-
         }
 
         Point size = new Point();
@@ -392,12 +516,12 @@ public class mainActivity extends AppCompatActivity {
 
         Log.d("DPI","Display Resolution :" + width + "x" + height);
 
-        Pair<Integer,Integer> resolution = new Pair<>(width,height);
+        Pair<Integer,Integer> resolution = new Pair<>(height,width);
 
         return resolution;
     }
 
-
+    //죽일 메소드
     private void getDPtoPX(Integer dp){
         String[] output_px = new String[5];
 
@@ -422,24 +546,20 @@ public class mainActivity extends AppCompatActivity {
 
     }
 
-
-    private Integer resolutionSelector(Integer reso,HashMap<Integer,Pair<Integer,String>> output_px){
+    private Integer resolutionSelector(Integer reso){
 
         Log.d("DPI","Calculating dp... In Current state,over XXHDPI only provide 2160p.");
-        Integer resolution =0;
-
-            if(reso >= 1000){
-                resolution = 2160;
-                switcher = true;
+        Integer img_address =0;
+        Log.d("DPI","output_data.get(NameTag) : " +   output_data.get(nameTag[curNameIndexor]));
+            if(reso >= 2160){
+                img_address = output_data.get(nameTag[curNameIndexor]).second;
+                switcher = false;
             }else{
-                resolution = 1080;
-                switcher =false;
+                img_address = output_data.get(nameTag[curNameIndexor]).first;
+                switcher = true;
             }
-
-            Pair<Integer,String> result;
-            result = output_px.get(resolution);
-
-        return result.first;
+        Log.d("DPI","Selector done ");
+        return img_address;
     }
 
 
@@ -472,8 +592,7 @@ public class mainActivity extends AppCompatActivity {
 //            Log.d("Directory","cannot Access to External Area");
 //        }
 
-
-    }
+}
 
 
 
